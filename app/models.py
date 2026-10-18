@@ -61,15 +61,23 @@ class InstagramScrapeRequest(BaseModel):
         description="Optional Instagram 'sessionid' cookie value to bypass Instagram 401/login walls"
     )
     fallback_sample_data: Optional[bool] = Field(
-        True,
-        description="If True and Instagram requires login (401), falls back to rich sample schema for testing"
+        False,
+        description="Only if explicitly set to True will it generate mock sample posts when unauthenticated."
     )
 
 
 class InstagramScrapeResponse(BaseModel):
-    status: str = Field("success", description="Status string: success or error")
+    status: str = Field("success", description="Status string: success, partial_success, or error")
     message: str = Field("", description="Human-readable status or informational message")
-    source: str = Field("live", description="'live' (direct Instagram scrape) or 'sample_fallback'")
+    source: str = Field("live", description="'live', 'live_profile_only', or 'demo_sample'")
+    auth_required_for_posts: bool = Field(
+        False,
+        description="True if Instagram returned 401 Unauthorized for post timelines and requires a sessionid"
+    )
+    instructions: Optional[str] = Field(
+        None,
+        description="Actionable instructions if authentication or sessionid is needed"
+    )
     profile: ProfileData = Field(..., description="Scraped profile information")
     posts: List[PostData] = Field(default_factory=list, description="Scraped posts with captions, dates, locations, comments")
     total_posts_scraped: int = Field(0, description="Count of posts scraped")

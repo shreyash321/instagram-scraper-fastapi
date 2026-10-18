@@ -1,7 +1,7 @@
 import re
 import logging
-from typing import Optional, List, Tuple
-from datetime import datetime, timezone
+from typing import Optional, List
+from datetime import datetime, timezone, timedelta
 
 import instaloader
 from fastapi import HTTPException
@@ -29,13 +29,10 @@ def extract_username(url_or_handle: str) -> str:
         - virat.kohli -> virat.kohli
     """
     cleaned = url_or_handle.strip().strip("/")
-    
-    # Check for full URL
     match = re.search(r"instagram\.com/([^/?#]+)", cleaned)
     if match:
         username = match.group(1)
     else:
-        # Check for @ handle or bare username
         username = cleaned.lstrip("@").split("?")[0].split("/")[0]
 
     if not username or username in ["p", "reel", "stories", "explore"]:
@@ -46,7 +43,7 @@ def extract_username(url_or_handle: str) -> str:
 
 def create_instaloader_instance(session_id: Optional[str] = None) -> instaloader.Instaloader:
     """
-    Creates an Instaloader instance configured for fast metadata-only scraping,
+    Creates an Instaloader instance configured for metadata scraping,
     injecting session credentials if provided.
     """
     loader = instaloader.Instaloader(
@@ -57,14 +54,15 @@ def create_instaloader_instance(session_id: Optional[str] = None) -> instaloader
         download_comments=False,
         save_metadata=False,
         compress_json=False,
-        max_connection_attempts=2,
-        request_timeout=15.0,
+        max_connection_attempts=3,
+        request_timeout=20.0,
     )
 
     # Use session_id if supplied in request, or fall back to environment variable
     active_session_id = session_id or settings.INSTAGRAM_SESSION_ID
     if active_session_id:
-        logger.info("Applying Instagram sessionid cookie for authenticated requests")
+        active_session_id = active_session_id.strip()
+        logger.info("Applying Instagram sessionid cookie for authenticated live request")
         loader.context._session.cookies.set("sessionid", active_session_id, domain=".instagram.com")
         loader.context._session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -73,114 +71,67 @@ def create_instaloader_instance(session_id: Optional[str] = None) -> instaloader
     return loader
 
 
-def build_sample_fallback_data(
+def build_dynamic_demo_posts(
     username: str,
-    partial_profile: Optional[dict] = None,
-    max_posts: Optional[int] = 5,
-    max_comments: Optional[int] = 3
-) -> InstagramScrapeResponse:
+    count: int = 10,
+    max_comments: int = 3
+) -> List[PostData]:
     """
-    Generates high-fidelity structured fallback data matching Instagram's exact schema
-    for the requested profile when Instagram blocks unauthenticated IP requests (401).
+    Generates dynamic demo post records up to the exact requested 'count'
+    ONLY when the user explicitly enables demo/offline fallback mode.
     """
-    profile = ProfileData(
-        username=username,
-        full_name=partial_profile.get("full_name") if partial_profile else "Virat Kohli",
-        biography=partial_profile.get("biography") if partial_profile else "Carpediem!",
-        followers=partial_profile.get("followers") if partial_profile else 271257000,
-        following=partial_profile.get("following") if partial_profile else 278,
-        posts_count=partial_profile.get("posts_count") if partial_profile else 1720,
-        is_verified=True,
-        profile_pic_url=f"https://instagram.com/{username}/profile_pic.jpg",
-        external_url="https://one8.com"
-    )
+    base_captions = [
+        "Focused on the journey ahead. Great session in the nets today! 🏏 #NeverSettle",
+        "Refueling with healthy greens after an intense workout. Health is true wealth! 🥗💪",
+        "Grateful for all the love and support from everyone around the globe. Keep believing. 🌟",
+        "Match day ready! Bringing 100% intensity to the field today. Let's go! ⚡",
+        "Quiet moments before the storm. Consistency and hard work beats talent when talent fails to work hard.",
+        "Quality family time back home. Nothing recharges the soul like being with loved ones. ❤️",
+        "Excited to announce our new brand collaboration! Stay tuned for something huge dropping this week.",
+        "Back to the basics. Footwork drills and technique practice under the morning sun.",
+        "Champions aren't made in the gym. They are made from something deep inside them: a desire, a dream, a vision.",
+        "Great win with the squad today! Proud of every single teammate who stepped up when it counted."
+    ]
 
-    limit_posts = max_posts if max_posts is not None else 3
-    limit_comments = max_comments if max_comments is not None else 3
-
-    sample_posts_meta = [
-        {
-            "id": "3348123456789012345",
-            "shortcode": "C58vXYZ1234",
-            "caption": "Focused on the journey ahead. Great session in the nets today! 🏏🇮🇳 #NeverSettle #TeamIndia",
-            "date": "2026-10-15T14:30:00Z",
-            "timestamp": 1792074600,
-            "location_name": "M. Chinnaswamy Stadium",
-            "likes": 2845000,
-            "comments_count": 38200,
-            "comments": [
-                {"id": "18012345678901234", "author": "anushkasharma", "text": "❤️❤️ Keep shining!", "created_at": "2026-10-15T14:35:00Z", "likes": 42000},
-                {"id": "18012345678901235", "author": "hardikpandya93", "text": "Top brother 🔥👊", "created_at": "2026-10-15T14:40:00Z", "likes": 18500},
-                {"id": "18012345678901236", "author": "royalchallengersbangalore", "text": "King at his fortress! 👑", "created_at": "2026-10-15T14:45:00Z", "likes": 25000},
-            ]
-        },
-        {
-            "id": "3347123456789012346",
-            "shortcode": "C55aBCD5678",
-            "caption": "Refueling with healthy greens after an intense workout. Health is true wealth! 🥗💪 #FitnessFirst",
-            "date": "2026-10-12T10:15:00Z",
-            "timestamp": 1791800100,
-            "location_name": "Mumbai, Maharashtra",
-            "likes": 2150000,
-            "comments_count": 19400,
-            "comments": [
-                {"id": "18012345678901237", "author": "one8commune", "text": "Delicious & nutritious! 🙌", "created_at": "2026-10-12T10:20:00Z", "likes": 8200},
-                {"id": "18012345678901238", "author": "cricketfan_club", "text": "Fitness inspiration for a whole generation! 💯", "created_at": "2026-10-12T10:25:00Z", "likes": 4300},
-            ]
-        },
-        {
-            "id": "3345123456789012347",
-            "shortcode": "C52zEFG9012",
-            "caption": "Grateful for all the love and support from everyone around the globe. Keep believing. 🌟🙏",
-            "date": "2026-10-08T18:00:00Z",
-            "timestamp": 1791482400,
-            "location_name": "New Delhi, India",
-            "likes": 3410000,
-            "comments_count": 45100,
-            "comments": [
-                {"id": "18012345678901239", "author": "indiancricketteam", "text": "Pride of the nation! 🇮🇳", "created_at": "2026-10-08T18:05:00Z", "likes": 31200},
-                {"id": "18012345678901240", "author": "abdevilliers17", "text": "Love you my friend! Legend ❤️", "created_at": "2026-10-08T18:10:00Z", "likes": 56000},
-            ]
-        }
+    sample_locations = [
+        "M. Chinnaswamy Stadium", "Wankhede Stadium, Mumbai", "Eden Gardens, Kolkata",
+        "Melbourne Cricket Ground", "Lord's Cricket Ground, London", "New Delhi, India",
+        "Dubai International Stadium", "Sydney Cricket Ground", "Cape Town, South Africa", None
     ]
 
     posts: List[PostData] = []
-    for item in sample_posts_meta[:limit_posts]:
-        comments_list: List[CommentData] = []
-        for c in item["comments"][:limit_comments]:
-            comments_list.append(CommentData(
-                id=c["id"],
-                author=c["author"],
-                text=c["text"],
-                created_at=c["created_at"],
-                likes_count=c["likes"]
+    base_time = datetime.now(timezone.utc) - timedelta(days=1)
+
+    for i in range(count):
+        post_time = base_time - timedelta(days=i * 2 + 1)
+        cap = base_captions[i % len(base_captions)]
+        loc_name = sample_locations[i % len(sample_locations)]
+        shortcode = f"C{i:02d}vTest{i:04d}"
+
+        comments: List[CommentData] = []
+        for c_idx in range(max_comments):
+            comments.append(CommentData(
+                id=f"1800000{i:04d}{c_idx:03d}",
+                author=f"fan_{username}_{c_idx+1}",
+                text=f"Great post #{i+1}! Keep inspiring us!",
+                created_at=(post_time + timedelta(minutes=15 * (c_idx + 1))).isoformat(),
+                likes_count=1500 * (c_idx + 1)
             ))
 
         posts.append(PostData(
-            post_id=item["id"],
-            shortcode=item["shortcode"],
-            url=f"https://www.instagram.com/p/{item['shortcode']}/",
-            date=item["date"],
-            timestamp=item["timestamp"],
-            caption=item["caption"],
-            location=LocationData(name=item["location_name"]) if item["location_name"] else None,
-            likes_count=item["likes"],
-            comments_count=item["comments_count"],
-            comments=comments_list
+            post_id=f"33481234567890{i:05d}",
+            shortcode=shortcode,
+            url=f"https://www.instagram.com/p/{shortcode}/",
+            date=post_time.isoformat(),
+            timestamp=int(post_time.timestamp()),
+            caption=f"[{i+1}/{count}] {cap}",
+            location=LocationData(name=loc_name) if loc_name else None,
+            likes_count=1500000 - (i * 12000),
+            comments_count=25000 - (i * 200),
+            comments=comments
         ))
 
-    return InstagramScrapeResponse(
-        status="success",
-        message=(
-            "Profile extracted successfully. Note: Instagram strictly requires an active 'sessionid' "
-            "cookie to scrape deep post timelines and comments on public servers. Set INSTAGRAM_SESSION_ID "
-            "in your .env or pass session_id in the request body for unrestricted live timeline scraping."
-        ),
-        source="sample_fallback_on_auth_required",
-        profile=profile,
-        posts=posts,
-        total_posts_scraped=len(posts)
-    )
+    return posts
 
 
 def scrape_instagram_profile(
@@ -188,25 +139,26 @@ def scrape_instagram_profile(
     max_posts: Optional[int] = 10,
     max_comments_per_post: Optional[int] = 5,
     session_id: Optional[str] = None,
-    fallback_sample_data: bool = True
+    fallback_sample_data: bool = False
 ) -> InstagramScrapeResponse:
     """
-    Main scraping function. Extracts:
-    - Profile name & username
-    - Bio & stats
-    - Posts: Captions, dates, locations
-    - Comments for each post
+    Main scraping function.
+    - If session_id is provided: scrapes REAL live posts, captions, timestamps, locations, and comments.
+    - If unauthenticated and Instagram blocks timeline:
+      - By default (fallback_sample_data=False): returns REAL profile data + empty posts list + clear instructions to supply session_id.
+      - If fallback_sample_data=True: returns dynamic demo posts up to max_posts.
     """
     username = extract_username(url_or_handle)
     loader = create_instaloader_instance(session_id)
 
     partial_profile = {}
+    profile_data = None
 
     try:
-        logger.info(f"Fetching Instagram profile metadata for '{username}'...")
+        logger.info(f"Fetching real Instagram profile metadata for '@{username}'...")
         profile = instaloader.Profile.from_username(loader.context, username)
         
-        # Safely extract basic profile information
+        # Extract profile fields
         try:
             partial_profile["full_name"] = profile.full_name
             partial_profile["biography"] = profile.biography
@@ -216,8 +168,8 @@ def scrape_instagram_profile(
             partial_profile["is_verified"] = profile.is_verified
             partial_profile["profile_pic_url"] = profile.profile_pic_url
             partial_profile["external_url"] = profile.external_url
-        except Exception as e:
-            logger.warning(f"Partial attribute access warning: {e}")
+        except Exception as attr_err:
+            logger.warning(f"Attribute access warning: {attr_err}")
 
         profile_data = ProfileData(
             username=profile.username,
@@ -232,18 +184,19 @@ def scrape_instagram_profile(
         )
 
         posts_data: List[PostData] = []
+        target_posts = max_posts if max_posts is not None else 10
+        target_comments = max_comments_per_post if max_comments_per_post is not None else 5
 
-        logger.info(f"Fetching posts and comments for '{username}'...")
-        # Iterate posts
+        logger.info(f"Fetching real posts and comments for '@{username}' (target: {target_posts} posts)...")
+        
+        # Iterate live posts
         for post_idx, post in enumerate(profile.get_posts()):
             if max_posts is not None and post_idx >= max_posts:
                 break
 
-            # Date formatting
             post_date = post.date_utc.replace(tzinfo=timezone.utc).isoformat()
             post_timestamp = int(post.date_utc.timestamp())
 
-            # Location formatting
             location_data = None
             if post.location:
                 location_data = LocationData(
@@ -253,7 +206,6 @@ def scrape_instagram_profile(
                     longitude=post.location.lng
                 )
 
-            # Comments scraping
             comments_data: List[CommentData] = []
             try:
                 for comment_idx, comment in enumerate(post.get_comments()):
@@ -290,8 +242,9 @@ def scrape_instagram_profile(
 
         return InstagramScrapeResponse(
             status="success",
-            message=f"Successfully scraped {len(posts_data)} posts from @{username}",
+            message=f"Successfully scraped {len(posts_data)} real posts from @{username}",
             source="live",
+            auth_required_for_posts=False,
             profile=profile_data,
             posts=posts_data,
             total_posts_scraped=len(posts_data)
@@ -310,34 +263,67 @@ def scrape_instagram_profile(
         err_msg = str(conn_err)
         logger.error(f"Instaloader connection exception: {err_msg}")
         
-        # If rate limited or 401 Unauthorized (Instagram login barrier)
-        if "401" in err_msg or "Please wait" in err_msg or "redirect" in err_msg:
+        # Instagram blocks unauthenticated timeline requests (401 / require_login)
+        if "401" in err_msg or "Please wait" in err_msg or "redirect" in err_msg or "login" in err_msg.lower():
+            # If user explicitly requested offline demo fallback
             if fallback_sample_data:
-                logger.info("Instagram blocked unauthenticated session. Serving sample fallback data.")
-                return build_sample_fallback_data(
+                logger.info(f"Fallback demo requested: generating {max_posts or 10} demo posts.")
+                demo_posts = build_dynamic_demo_posts(
                     username=username,
-                    partial_profile=partial_profile,
-                    max_posts=max_posts,
-                    max_comments=max_comments_per_post
+                    count=max_posts if max_posts is not None else 10,
+                    max_comments=max_comments_per_post if max_comments_per_post is not None else 3
                 )
-            else:
-                raise HTTPException(
-                    status_code=401,
-                    detail=(
-                        f"Instagram blocked unauthenticated request for @{username} (401 Unauthorized / Login Required). "
-                        "Please pass a valid 'session_id' in your request body or configure INSTAGRAM_SESSION_ID in .env."
-                    )
+                safe_profile = profile_data or ProfileData(
+                    username=username,
+                    full_name=partial_profile.get("full_name") or username,
+                    biography=partial_profile.get("biography") or "",
+                    followers=partial_profile.get("followers"),
+                    following=partial_profile.get("following"),
+                    posts_count=partial_profile.get("posts_count"),
+                    is_verified=partial_profile.get("is_verified")
                 )
+                return InstagramScrapeResponse(
+                    status="success",
+                    message=f"Serving {len(demo_posts)} demo sample posts (Demo mode explicitly enabled).",
+                    source="demo_sample",
+                    auth_required_for_posts=True,
+                    instructions="To fetch REAL live posts, provide your Instagram 'sessionid' cookie and turn off demo mode.",
+                    profile=safe_profile,
+                    posts=demo_posts,
+                    total_posts_scraped=len(demo_posts)
+                )
+
+            # Default: Real data only. Return real profile, 0 fake posts, clear explanation
+            safe_profile = profile_data or ProfileData(
+                username=username,
+                full_name=partial_profile.get("full_name") or username,
+                biography=partial_profile.get("biography") or "",
+                followers=partial_profile.get("followers"),
+                following=partial_profile.get("following"),
+                posts_count=partial_profile.get("posts_count"),
+                is_verified=partial_profile.get("is_verified")
+            )
+            return InstagramScrapeResponse(
+                status="partial_success",
+                message=(
+                    f"Real profile metadata for @{username} was fetched successfully! "
+                    f"However, Instagram returned 401 Unauthorized for posts and comments because Meta strictly requires an active login session. "
+                    f"No fake sample posts were returned."
+                ),
+                source="live_profile_only",
+                auth_required_for_posts=True,
+                instructions=(
+                    "How to get real posts & comments: (1) Open instagram.com and log in. "
+                    "(2) Press F12 -> Application tab -> Cookies -> Copy the value of 'sessionid'. "
+                    "(3) Paste it into the 'Instagram Session ID' input field or configure INSTAGRAM_SESSION_ID in .env."
+                ),
+                profile=safe_profile,
+                posts=[],
+                total_posts_scraped=0
+            )
+
         raise HTTPException(status_code=502, detail=f"Instagram connection error: {err_msg}")
 
     except Exception as exc:
         logger.exception(f"Unexpected error while scraping @{username}: {exc}")
-        if fallback_sample_data:
-            return build_sample_fallback_data(
-                username=username,
-                partial_profile=partial_profile,
-                max_posts=max_posts,
-                max_comments=max_comments_per_post
-            )
         raise HTTPException(status_code=500, detail=f"Internal scraping error: {str(exc)}")
-

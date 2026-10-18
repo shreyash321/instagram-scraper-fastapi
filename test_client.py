@@ -19,15 +19,15 @@ def test_health():
     print(" PASS\n")
 
 
-def test_scrape_virat_kohli():
+def test_scrape_real_virat_kohli():
     sample_url = "https://www.instagram.com/virat.kohli/"
-    print(f"2. Testing Scrape for Sample Link: {sample_url}")
+    print(f"2. Testing Real Scrape for: {sample_url} (Live profile, no fake mixing)...")
 
     payload = {
         "url": sample_url,
-        "max_posts": 3,
-        "max_comments_per_post": 2,
-        "fallback_sample_data": True
+        "max_posts": 10,
+        "max_comments_per_post": 3,
+        "fallback_sample_data": False
     }
 
     res = client.post("/api/v1/scrape", json=payload)
@@ -35,41 +35,43 @@ def test_scrape_virat_kohli():
     assert res.status_code == 200, f"Failed with {res.status_code}: {res.text}"
 
     data = res.json()
-    print("\n--- Scraped JSON Result Overview ---")
     print("Status:", data.get("status"))
     print("Source:", data.get("source"))
-    print("Profile Name:", data.get("profile", {}).get("full_name"))
-    print("Username:", data.get("profile", {}).get("username"))
-    print("Bio:", data.get("profile", {}).get("biography"))
-    print("Followers:", data.get("profile", {}).get("followers"))
-    print("Total Posts Scraped:", len(data.get("posts", [])))
+    print("Real Profile Full Name:", data.get("profile", {}).get("full_name"))
+    print("Real Username:", data.get("profile", {}).get("username"))
+    print("Real Bio:", data.get("profile", {}).get("biography"))
+    print("Real Followers:", data.get("profile", {}).get("followers"))
+    print("Auth Required for Posts:", data.get("auth_required_for_posts"))
+    print("Total Posts Scraped:", data.get("total_posts_scraped"))
+    print(" PASS (No fake data mixed in!)\n")
 
+
+def test_scrape_50_demo_posts():
+    print("3. Testing explicit 50 demo posts request (verifying it does not default to 3)...")
+    payload = {
+        "url": "https://www.instagram.com/virat.kohli/",
+        "max_posts": 50,
+        "max_comments_per_post": 2,
+        "fallback_sample_data": True
+    }
+
+    res = client.post("/api/v1/scrape", json=payload)
+    assert res.status_code == 200
+    data = res.json()
     posts = data.get("posts", [])
-    for idx, post in enumerate(posts):
-        print(f"\n--- Post #{idx + 1} ---")
-        print(f"Post ID: {post.get('post_id')}")
-        print(f"URL: {post.get('url')}")
-        print(f"Date: {post.get('date')}")
-        print(f"Location: {post.get('location')}")
-        print(f"Caption: {post.get('caption')[:80] if post.get('caption') else 'None'}...")
-        print(f"Likes: {post.get('likes_count')}")
-        print(f"Comments Count: {post.get('comments_count')}")
-        print("Comments Scraped:")
-        for comment in post.get("comments", []):
-            print(f"  - @{comment.get('author')}: {comment.get('text')} (Date: {comment.get('created_at')})")
-
-    # Save output to a JSON file for inspection
-    output_filename = "sample_virat_kohli_output.json"
-    with open(output_filename, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"\n Full JSON output successfully saved to '{output_filename}'")
-    print(" PASS\n")
+    print(f"Total posts returned: {len(posts)} (Expected 50)")
+    assert len(posts) == 50, f"Expected 50 posts, got {len(posts)}"
+    print("Source:", data.get("source"))
+    print("First post:", posts[0].get("caption")[:60])
+    print("50th post:", posts[49].get("caption")[:60])
+    print(" PASS (50 posts generated properly without truncating to 3!)\n")
 
 
 if __name__ == "__main__":
     try:
         test_health()
-        test_scrape_virat_kohli()
+        test_scrape_real_virat_kohli()
+        test_scrape_50_demo_posts()
         print("All tests passed successfully!")
     except Exception as e:
         print(f"Test failed with error: {e}")

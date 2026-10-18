@@ -19,7 +19,7 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS Middleware to allow frontend/mobile/Postman clients
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,7 +40,7 @@ def web_ui():
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    pre { max-height: 500px; }
+    pre { max-height: 550px; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
@@ -48,22 +48,23 @@ def web_ui():
     <!-- Header -->
     <header class="text-center mb-8">
       <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-pink-400 text-sm font-medium mb-3">
-        <i class="fa-brands fa-instagram text-lg"></i> FastAPI Live Scraper
+        <i class="fa-brands fa-instagram text-lg"></i> FastAPI Live Instagram Scraper
       </div>
       <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
         Instagram Data Scraper
       </h1>
       <p class="text-slate-400 mt-2 text-sm sm:text-base">
-        Extract profile info, bio, posts, captions, timestamps, locations & comments into JSON
+        Extract real profile info, bio, posts, captions, timestamps, locations & comments into JSON
       </p>
       <div class="mt-2 flex justify-center gap-4 text-xs text-slate-500">
         <a href="/docs" target="_blank" class="hover:text-pink-400 transition underline"><i class="fa-solid fa-book"></i> Interactive Docs (/docs)</a>
         <a href="/api/info" class="hover:text-pink-400 transition underline"><i class="fa-solid fa-code"></i> API Metadata (/api/info)</a>
+        <a href="https://github.com/shreyash321/instagram-scraper-fastapi" target="_blank" class="hover:text-pink-400 transition underline"><i class="fa-brands fa-github"></i> GitHub Repo</a>
       </div>
     </header>
 
     <!-- Scraper Form Card -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm mb-8">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm mb-6">
       <form id="scrapeForm" class="space-y-4">
         <div>
           <label class="block text-sm font-semibold text-slate-300 mb-1">
@@ -79,7 +80,7 @@ def web_ui():
               required
               value="https://www.instagram.com/virat.kohli/"
               placeholder="e.g. https://www.instagram.com/virat.kohli/ or virat.kohli"
-              class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-750 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm transition"
+              class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm transition"
             />
           </div>
         </div>
@@ -91,9 +92,9 @@ def web_ui():
             <input
               type="number"
               id="maxPosts"
-              value="5"
+              value="10"
               min="1"
-              max="100"
+              max="200"
               class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-pink-500 focus:outline-none"
             />
           </div>
@@ -102,24 +103,38 @@ def web_ui():
             <input
               type="number"
               id="maxComments"
-              value="3"
+              value="5"
               min="0"
-              max="50"
+              max="100"
               class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-pink-500 focus:outline-none"
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Instagram Session ID (Optional)</label>
+            <label class="block text-xs font-medium text-amber-300 mb-1">
+              Instagram Session ID <span class="text-slate-500 font-normal">(for live posts)</span>
+            </label>
             <input
               type="text"
               id="sessionId"
-              placeholder="sessionid cookie"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-pink-500 focus:outline-none"
+              placeholder="Paste sessionid cookie here"
+              class="w-full px-3 py-2 bg-slate-950 border border-amber-500/40 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-amber-500 focus:outline-none"
             />
           </div>
         </div>
 
-        <div class="pt-3 flex flex-wrap gap-3">
+        <!-- Session ID Helper & Demo Toggle -->
+        <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 text-xs text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-amber-400"></i>
+            <span><strong>Why Session ID?</strong> Instagram requires login to read post timelines & comments. Without it, real profile details are fetched, but posts require authentication.</span>
+          </div>
+          <label class="flex items-center gap-2 text-slate-400 cursor-pointer flex-shrink-0">
+            <input type="checkbox" id="demoFallback" class="rounded bg-slate-900 border-slate-700 text-pink-600 focus:ring-pink-500" />
+            <span class="text-xs">Offline Demo Fallback Mode</span>
+          </label>
+        </div>
+
+        <div class="pt-2 flex flex-wrap gap-3">
           <button
             type="submit"
             id="submitBtn"
@@ -154,6 +169,24 @@ def web_ui():
       <p id="errorMessage" class="mt-1 text-xs text-red-400"></p>
     </div>
 
+    <!-- Auth Notice Banner -->
+    <div id="authNoticeBanner" class="hidden bg-amber-950/50 border border-amber-700/60 rounded-xl p-4 mb-6 text-amber-200 text-sm">
+      <div class="flex items-center gap-2 font-semibold text-amber-300">
+        <i class="fa-solid fa-key"></i>
+        <span>Instagram Session Cookie Required for Posts Timeline</span>
+      </div>
+      <p id="authNoticeMessage" class="mt-1 text-xs text-amber-300/80 leading-relaxed"></p>
+      <div class="mt-3 bg-slate-950/80 p-3 rounded-lg border border-amber-900/50 text-xs text-slate-300">
+        <strong class="text-amber-400">How to get your sessionid in 15 seconds:</strong>
+        <ol class="list-decimal list-inside mt-1 space-y-1 text-slate-400">
+          <li>Open <a href="https://www.instagram.com" target="_blank" class="text-pink-400 underline">instagram.com</a> in your browser and make sure you are logged in.</li>
+          <li>Press <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200">F12</kbd> to open Developer Tools.</li>
+          <li>Go to the <strong>Application</strong> tab (or <strong>Storage</strong> on Firefox) &rarr; expand <strong>Cookies</strong> &rarr; click <strong>https://www.instagram.com</strong>.</li>
+          <li>Find the row named <code class="text-amber-400 font-mono font-bold">sessionid</code>, copy its value, and paste it into the <strong>Instagram Session ID</strong> field above!</li>
+        </ol>
+      </div>
+    </div>
+
     <!-- Results Section -->
     <div id="resultsSection" class="hidden space-y-6">
       <!-- Profile Card -->
@@ -169,12 +202,13 @@ def web_ui():
               <h2 id="resFullName" class="text-xl font-bold text-white">Full Name</h2>
               <span id="resUsername" class="text-sm text-pink-400 font-mono">@username</span>
               <span id="resVerified" class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-check"></i> Verified</span>
+              <span id="resSourceBadge" class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-full">Source: live</span>
             </div>
             <p id="resBio" class="text-slate-300 text-sm mt-2 whitespace-pre-line"></p>
             <div class="mt-4 flex flex-wrap justify-center sm:justify-start gap-6 text-xs text-slate-400 border-t border-slate-800 pt-3">
               <div><strong id="resFollowers" class="text-white text-sm font-semibold">0</strong> Followers</div>
               <div><strong id="resFollowing" class="text-white text-sm font-semibold">0</strong> Following</div>
-              <div><strong id="resPostsCount" class="text-white text-sm font-semibold">0</strong> Total Posts</div>
+              <div><strong id="resPostsCount" class="text-white text-sm font-semibold">0</strong> Total Posts Published</div>
               <div><strong id="resScrapedCount" class="text-pink-400 text-sm font-semibold">0</strong> Posts Scraped</div>
             </div>
           </div>
@@ -209,25 +243,28 @@ def web_ui():
 
     document.getElementById('testBtn').addEventListener('click', () => {
       document.getElementById('profileUrl').value = 'https://www.instagram.com/virat.kohli/';
-      document.getElementById('maxPosts').value = '5';
-      document.getElementById('maxComments').value = '3';
+      document.getElementById('maxPosts').value = '10';
+      document.getElementById('maxComments').value = '5';
     });
 
     document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const url = document.getElementById('profileUrl').value.trim();
-      const maxPosts = parseInt(document.getElementById('maxPosts').value) || 5;
-      const maxComments = parseInt(document.getElementById('maxComments').value) || 3;
+      const maxPosts = parseInt(document.getElementById('maxPosts').value) || 10;
+      const maxComments = parseInt(document.getElementById('maxComments').value) || 5;
       const sessionId = document.getElementById('sessionId').value.trim() || null;
+      const demoFallback = document.getElementById('demoFallback').checked;
 
       const loader = document.getElementById('loader');
       const resultsSection = document.getElementById('resultsSection');
       const errorBanner = document.getElementById('errorBanner');
+      const authNoticeBanner = document.getElementById('authNoticeBanner');
       const submitBtn = document.getElementById('submitBtn');
 
       loader.classList.remove('hidden');
       resultsSection.classList.add('hidden');
       errorBanner.classList.add('hidden');
+      authNoticeBanner.classList.add('hidden');
       submitBtn.disabled = true;
       submitBtn.classList.add('opacity-50');
 
@@ -240,7 +277,7 @@ def web_ui():
             max_posts: maxPosts,
             max_comments_per_post: maxComments,
             session_id: sessionId,
-            fallback_sample_data: true
+            fallback_sample_data: demoFallback
           })
         });
 
@@ -251,6 +288,12 @@ def web_ui():
 
         currentData = data;
         renderResults(data);
+
+        // Check if authentication was required for posts
+        if (data.auth_required_for_posts && data.total_posts_scraped === 0) {
+          document.getElementById('authNoticeMessage').textContent = data.message;
+          authNoticeBanner.classList.remove('hidden');
+        }
       } catch (err) {
         document.getElementById('errorTitle').textContent = 'Error Scraping Profile';
         document.getElementById('errorMessage').textContent = err.message;
@@ -270,7 +313,8 @@ def web_ui():
       document.getElementById('resFollowers').textContent = (p.followers || 0).toLocaleString();
       document.getElementById('resFollowing').textContent = (p.following || 0).toLocaleString();
       document.getElementById('resPostsCount').textContent = (p.posts_count || 0).toLocaleString();
-      document.getElementById('resScrapedCount').textContent = data.total_posts_scraped || (data.posts ? data.posts.length : 0);
+      document.getElementById('resScrapedCount').textContent = data.total_posts_scraped || 0;
+      document.getElementById('resSourceBadge').textContent = 'Source: ' + (data.source || 'live');
 
       const verifiedBadge = document.getElementById('resVerified');
       if (p.is_verified) {
@@ -344,10 +388,10 @@ def scrape_profile_post(request: InstagramScrapeRequest):
     """
     Scrapes an Instagram profile using a JSON request body:
     - **url**: Full profile link (e.g. `https://www.instagram.com/virat.kohli/`) or handle
-    - **max_posts**: Maximum number of posts to scrape (default: 10)
-    - **max_comments_per_post**: Maximum comments to fetch per post (default: 5)
+    - **max_posts**: Maximum number of posts to scrape (e.g., 10, 50, 100)
+    - **max_comments_per_post**: Maximum comments to fetch per post
     - **session_id**: Optional Instagram sessionid cookie value
-    - **fallback_sample_data**: If True, returns rich schema if Instagram throws 401
+    - **fallback_sample_data**: If True, generates demo sample posts matching requested count
     """
     try:
         response = scrape_instagram_profile(
@@ -376,10 +420,10 @@ def scrape_profile_post(request: InstagramScrapeRequest):
 )
 def scrape_profile_get(
     url: str = Query(..., description="Instagram profile URL (e.g. https://www.instagram.com/virat.kohli/)"),
-    max_posts: Optional[int] = Query(5, description="Max posts to scrape"),
-    max_comments: Optional[int] = Query(3, description="Max comments per post"),
+    max_posts: Optional[int] = Query(10, description="Max posts to scrape"),
+    max_comments: Optional[int] = Query(5, description="Max comments per post"),
     session_id: Optional[str] = Query(None, description="Optional sessionid cookie"),
-    fallback_sample_data: bool = Query(True, description="Fallback if Instagram rate limits")
+    fallback_sample_data: bool = Query(False, description="Offline demo mock posts")
 ):
     """
     Convenient GET endpoint for quick browser or webhook testing.
@@ -402,9 +446,10 @@ def scrape_profile_get(
 )
 def scrape_by_username(
     username: str,
-    max_posts: Optional[int] = Query(5, description="Max posts to scrape"),
-    max_comments: Optional[int] = Query(3, description="Max comments per post"),
-    session_id: Optional[str] = Query(None, description="Optional sessionid cookie")
+    max_posts: Optional[int] = Query(10, description="Max posts to scrape"),
+    max_comments: Optional[int] = Query(5, description="Max comments per post"),
+    session_id: Optional[str] = Query(None, description="Optional sessionid cookie"),
+    fallback_sample_data: bool = Query(False, description="Offline demo mock posts")
 ):
     """
     Convenient endpoint to fetch directly by username handle (e.g. /api/v1/profile/virat.kohli).
@@ -414,11 +459,10 @@ def scrape_by_username(
         max_posts=max_posts,
         max_comments_per_post=max_comments,
         session_id=session_id,
-        fallback_sample_data=True
+        fallback_sample_data=fallback_sample_data
     )
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host=settings.APP_HOST, port=settings.APP_PORT, reload=True)
-
