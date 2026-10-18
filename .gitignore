@@ -42,3 +42,4 @@ ENV/
 # Instaloader session files
 .instaloader-*
 session-*
+

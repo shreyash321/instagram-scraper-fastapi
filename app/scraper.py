@@ -340,3 +340,4 @@ def scrape_instagram_profile(
                 max_comments=max_comments_per_post
             )
         raise HTTPException(status_code=500, detail=f"Internal scraping error: {str(exc)}")
+

@@ -73,3 +73,4 @@ class InstagramScrapeResponse(BaseModel):
     profile: ProfileData = Field(..., description="Scraped profile information")
     posts: List[PostData] = Field(default_factory=list, description="Scraped posts with captions, dates, locations, comments")
     total_posts_scraped: int = Field(0, description="Count of posts scraped")
+

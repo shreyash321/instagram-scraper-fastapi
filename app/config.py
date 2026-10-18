@@ -17,3 +17,4 @@ class Settings:
     DEFAULT_MAX_COMMENTS: int = int(os.getenv("DEFAULT_MAX_COMMENTS", "5"))
 
 settings = Settings()
+
