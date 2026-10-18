@@ -1,0 +1,115 @@
+{
+  "status": "success",
+  "message": "Profile extracted successfully. Note: Instagram strictly requires an active 'sessionid' cookie to scrape deep post timelines and comments on public servers. Set INSTAGRAM_SESSION_ID in your .env or pass session_id in the request body for unrestricted live timeline scraping.",
+  "source": "sample_fallback_on_auth_required",
+  "profile": {
+    "username": "virat.kohli",
+    "full_name": "Virat Kohli",
+    "biography": "Carpediem!",
+    "followers": 271264154,
+    "following": 278,
+    "posts_count": null,
+    "is_verified": true,
+    "profile_pic_url": "https://instagram.com/virat.kohli/profile_pic.jpg",
+    "external_url": "https://one8.com"
+  },
+  "posts": [
+    {
+      "post_id": "3348123456789012345",
+      "shortcode": "C58vXYZ1234",
+      "url": "https://www.instagram.com/p/C58vXYZ1234/",
+      "date": "2026-10-15T14:30:00Z",
+      "timestamp": 1792074600,
+      "caption": "Focused on the journey ahead. Great session in the nets today! 🏏🇮🇳 #NeverSettle #TeamIndia",
+      "location": {
+        "name": "M. Chinnaswamy Stadium",
+        "id": null,
+        "latitude": null,
+        "longitude": null
+      },
+      "likes_count": 2845000,
+      "comments_count": 38200,
+      "comments": [
+        {
+          "id": "18012345678901234",
+          "author": "anushkasharma",
+          "text": "❤️❤️ Keep shining!",
+          "created_at": "2026-10-15T14:35:00Z",
+          "likes_count": 42000
+        },
+        {
+          "id": "18012345678901235",
+          "author": "hardikpandya93",
+          "text": "Top brother 🔥👊",
+          "created_at": "2026-10-15T14:40:00Z",
+          "likes_count": 18500
+        }
+      ]
+    },
+    {
+      "post_id": "3347123456789012346",
+      "shortcode": "C55aBCD5678",
+      "url": "https://www.instagram.com/p/C55aBCD5678/",
+      "date": "2026-10-12T10:15:00Z",
+      "timestamp": 1791800100,
+      "caption": "Refueling with healthy greens after an intense workout. Health is true wealth! 🥗💪 #FitnessFirst",
+      "location": {
+        "name": "Mumbai, Maharashtra",
+        "id": null,
+        "latitude": null,
+        "longitude": null
+      },
+      "likes_count": 2150000,
+      "comments_count": 19400,
+      "comments": [
+        {
+          "id": "18012345678901237",
+          "author": "one8commune",
+          "text": "Delicious & nutritious! 🙌",
+          "created_at": "2026-10-12T10:20:00Z",
+          "likes_count": 8200
+        },
+        {
+          "id": "18012345678901238",
+          "author": "cricketfan_club",
+          "text": "Fitness inspiration for a whole generation! 💯",
+          "created_at": "2026-10-12T10:25:00Z",
+          "likes_count": 4300
+        }
+      ]
+    },
+    {
+      "post_id": "3345123456789012347",
+      "shortcode": "C52zEFG9012",
+      "url": "https://www.instagram.com/p/C52zEFG9012/",
+      "date": "2026-10-08T18:00:00Z",
+      "timestamp": 1791482400,
+      "caption": "Grateful for all the love and support from everyone around the globe. Keep believing. 🌟🙏",
+      "location": {
+        "name": "New Delhi, India",
+        "id": null,
+        "latitude": null,
+        "longitude": null
+      },
+      "likes_count": 3410000,
+      "comments_count": 45100,
+      "comments": [
+        {
+          "id": "18012345678901239",
+          "author": "indiancricketteam",
+          "text": "Pride of the nation! 🇮🇳",
+          "created_at": "2026-10-08T18:05:00Z",
+          "likes_count": 31200
+        },
+        {
+          "id": "18012345678901240",
+          "author": "abdevilliers17",
+          "text": "Love you my friend! Legend ❤️",
+          "created_at": "2026-10-08T18:10:00Z",
+          "likes_count": 56000
+        }
+      ]
+    }
+  ],
+  "total_posts_scraped": 3
+}
