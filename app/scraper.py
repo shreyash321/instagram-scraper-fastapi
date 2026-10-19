@@ -14,6 +14,7 @@ from app.models import (
     InstagramScrapeResponse,
 )
 from app.config import settings
+from app.cache import cache
 
 logger = logging.getLogger("instagram_scraper")
 logging.basicConfig(level=logging.INFO)
@@ -146,6 +147,14 @@ def scrape_instagram_profile(
     Fast-fails on rate limits without hanging client connections.
     """
     username = extract_username(url_or_handle)
+    
+    # Check cache first to save rate-limits for continuous system queries
+    cache_key = f"{username}:{max_posts}:{max_comments_per_post}:{bool(fallback_sample_data)}"
+    cached = cache.get(cache_key)
+    if cached:
+        logger.info(f"Returning cached profile data for @{username}")
+        return cached
+
     loader = create_instaloader_instance(session_id)
 
     partial_profile = {}
@@ -235,7 +244,7 @@ def scrape_instagram_profile(
                 comments=comments_data
             ))
 
-        return InstagramScrapeResponse(
+        response = InstagramScrapeResponse(
             status="success",
             message=f"Successfully scraped {len(posts_data)} real posts from @{username}",
             source="live",
@@ -244,6 +253,8 @@ def scrape_instagram_profile(
             posts=posts_data,
             total_posts_scraped=len(posts_data)
         )
+        cache.set(cache_key, response)
+        return response
 
     except instaloader.exceptions.ProfileNotExistsException:
         raise HTTPException(status_code=404, detail=f"Instagram profile '{username}' does not exist.")
