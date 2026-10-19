@@ -22,11 +22,6 @@ logging.basicConfig(level=logging.INFO)
 def extract_username(url_or_handle: str) -> str:
     """
     Extract clean Instagram username from a URL, handle, or string.
-    Examples:
-        - https://www.instagram.com/virat.kohli/ -> virat.kohli
-        - https://instagram.com/virat.kohli?igsh=123 -> virat.kohli
-        - @virat.kohli -> virat.kohli
-        - virat.kohli -> virat.kohli
     """
     cleaned = url_or_handle.strip().strip("/")
     match = re.search(r"instagram\.com/([^/?#]+)", cleaned)
@@ -43,8 +38,8 @@ def extract_username(url_or_handle: str) -> str:
 
 def create_instaloader_instance(session_id: Optional[str] = None) -> instaloader.Instaloader:
     """
-    Creates an Instaloader instance configured for metadata scraping,
-    injecting session credentials if provided.
+    Creates an Instaloader instance configured for fast metadata scraping.
+    Disables retry-sleep loops and 429 delays to prevent hanging web requests.
     """
     loader = instaloader.Instaloader(
         download_pictures=False,
@@ -54,11 +49,16 @@ def create_instaloader_instance(session_id: Optional[str] = None) -> instaloader
         download_comments=False,
         save_metadata=False,
         compress_json=False,
-        max_connection_attempts=3,
-        request_timeout=20.0,
+        max_connection_attempts=1,  # Fast-fail without sleeping 600+ seconds
+        request_timeout=10.0,       # Strict HTTP timeout
     )
 
-    # Use session_id if supplied in request, or fall back to environment variable
+    # Disable internal rate sleep
+    loader.context.sleep = False
+    if hasattr(loader.context, "_rate_controller"):
+        loader.context._rate_controller.handle_429 = lambda *args, **kwargs: None
+        loader.context._rate_controller.wait_before_query = lambda *args, **kwargs: None
+
     active_session_id = session_id or settings.INSTAGRAM_SESSION_ID
     if active_session_id:
         active_session_id = active_session_id.strip()
@@ -143,10 +143,7 @@ def scrape_instagram_profile(
 ) -> InstagramScrapeResponse:
     """
     Main scraping function.
-    - If session_id is provided: scrapes REAL live posts, captions, timestamps, locations, and comments.
-    - If unauthenticated and Instagram blocks timeline:
-      - By default (fallback_sample_data=False): returns REAL profile data + empty posts list + clear instructions to supply session_id.
-      - If fallback_sample_data=True: returns dynamic demo posts up to max_posts.
+    Fast-fails on rate limits without hanging client connections.
     """
     username = extract_username(url_or_handle)
     loader = create_instaloader_instance(session_id)
@@ -158,7 +155,6 @@ def scrape_instagram_profile(
         logger.info(f"Fetching real Instagram profile metadata for '@{username}'...")
         profile = instaloader.Profile.from_username(loader.context, username)
         
-        # Extract profile fields
         try:
             partial_profile["full_name"] = profile.full_name
             partial_profile["biography"] = profile.biography
@@ -189,7 +185,6 @@ def scrape_instagram_profile(
 
         logger.info(f"Fetching real posts and comments for '@{username}' (target: {target_posts} posts)...")
         
-        # Iterate live posts
         for post_idx, post in enumerate(profile.get_posts()):
             if max_posts is not None and post_idx >= max_posts:
                 break
@@ -259,56 +254,64 @@ def scrape_instagram_profile(
             detail=f"Instagram profile '{username}' is private. Log in with an account that follows this user."
         )
 
-    except instaloader.exceptions.ConnectionException as conn_err:
-        err_msg = str(conn_err)
-        logger.error(f"Instaloader connection exception: {err_msg}")
+    except Exception as exc:
+        err_msg = str(exc)
+        logger.error(f"Scraping exception for @{username}: {err_msg}")
         
-        # Instagram blocks unauthenticated timeline requests (401 / require_login)
-        if "401" in err_msg or "Please wait" in err_msg or "redirect" in err_msg or "login" in err_msg.lower():
-            # If user explicitly requested offline demo fallback
-            if fallback_sample_data:
-                logger.info(f"Fallback demo requested: generating {max_posts or 10} demo posts.")
-                demo_posts = build_dynamic_demo_posts(
-                    username=username,
-                    count=max_posts if max_posts is not None else 10,
-                    max_comments=max_comments_per_post if max_comments_per_post is not None else 3
-                )
-                safe_profile = profile_data or ProfileData(
-                    username=username,
-                    full_name=partial_profile.get("full_name") or username,
-                    biography=partial_profile.get("biography") or "",
-                    followers=partial_profile.get("followers"),
-                    following=partial_profile.get("following"),
-                    posts_count=partial_profile.get("posts_count"),
-                    is_verified=partial_profile.get("is_verified")
-                )
-                return InstagramScrapeResponse(
-                    status="success",
-                    message=f"Serving {len(demo_posts)} demo sample posts (Demo mode explicitly enabled).",
-                    source="demo_sample",
-                    auth_required_for_posts=True,
-                    instructions="To fetch REAL live posts, provide your Instagram 'sessionid' cookie and turn off demo mode.",
-                    profile=safe_profile,
-                    posts=demo_posts,
-                    total_posts_scraped=len(demo_posts)
-                )
+        is_429 = "429" in err_msg or "too many requests" in err_msg.lower()
+        is_401 = "401" in err_msg or "please wait" in err_msg.lower() or "redirect" in err_msg.lower() or "login" in err_msg.lower()
 
-            # Default: Real data only. Return real profile, 0 fake posts, clear explanation
-            safe_profile = profile_data or ProfileData(
+        safe_profile = profile_data or ProfileData(
+            username=username,
+            full_name=partial_profile.get("full_name") or username,
+            biography=partial_profile.get("biography") or "",
+            followers=partial_profile.get("followers"),
+            following=partial_profile.get("following"),
+            posts_count=partial_profile.get("posts_count"),
+            is_verified=partial_profile.get("is_verified")
+        )
+
+        if fallback_sample_data:
+            logger.info(f"Fallback demo requested: generating {max_posts or 10} demo posts.")
+            demo_posts = build_dynamic_demo_posts(
                 username=username,
-                full_name=partial_profile.get("full_name") or username,
-                biography=partial_profile.get("biography") or "",
-                followers=partial_profile.get("followers"),
-                following=partial_profile.get("following"),
-                posts_count=partial_profile.get("posts_count"),
-                is_verified=partial_profile.get("is_verified")
+                count=max_posts if max_posts is not None else 10,
+                max_comments=max_comments_per_post if max_comments_per_post is not None else 3
             )
+            return InstagramScrapeResponse(
+                status="success",
+                message=f"Serving {len(demo_posts)} demo sample posts (Demo mode explicitly enabled).",
+                source="demo_sample",
+                auth_required_for_posts=True,
+                instructions="To fetch REAL live posts, provide a valid Instagram 'sessionid' cookie.",
+                profile=safe_profile,
+                posts=demo_posts,
+                total_posts_scraped=len(demo_posts)
+            )
+
+        if is_429:
+            return InstagramScrapeResponse(
+                status="rate_limited",
+                message=(
+                    f"Instagram returned HTTP 429 (Too Many Requests) for @{username}. "
+                    "Instagram is temporarily throttling requests from this IP or session cookie. "
+                    "Please wait 2-3 minutes before sending another request, or try a fresh sessionid cookie."
+                ),
+                source="live_profile_only",
+                auth_required_for_posts=True,
+                instructions="Wait 2-3 minutes or provide a fresh Instagram sessionid cookie.",
+                profile=safe_profile,
+                posts=[],
+                total_posts_scraped=0
+            )
+
+        if is_401:
             return InstagramScrapeResponse(
                 status="partial_success",
                 message=(
-                    f"Real profile metadata for @{username} was fetched successfully! "
-                    f"However, Instagram returned 401 Unauthorized for posts and comments because Meta strictly requires an active login session. "
-                    f"No fake sample posts were returned."
+                    f"Profile metadata for @{username} was fetched successfully! "
+                    "However, Instagram's security policy requires an active session cookie ('sessionid') "
+                    "to scrape post timelines and comments on public IPs (401 Unauthorized)."
                 ),
                 source="live_profile_only",
                 auth_required_for_posts=True,
@@ -322,8 +325,12 @@ def scrape_instagram_profile(
                 total_posts_scraped=0
             )
 
-        raise HTTPException(status_code=502, detail=f"Instagram connection error: {err_msg}")
-
-    except Exception as exc:
-        logger.exception(f"Unexpected error while scraping @{username}: {exc}")
-        raise HTTPException(status_code=500, detail=f"Internal scraping error: {str(exc)}")
+        return InstagramScrapeResponse(
+            status="error",
+            message=f"Instagram query failed: {err_msg}",
+            source="live_profile_only",
+            auth_required_for_posts=True,
+            profile=safe_profile,
+            posts=[],
+            total_posts_scraped=0
+        )

@@ -268,9 +268,13 @@ def web_ui():
       submitBtn.disabled = true;
       submitBtn.classList.add('opacity-50');
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
       try {
         const response = await fetch('/api/v1/scrape', {
           method: 'POST',
+          signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             url: url,
@@ -281,6 +285,7 @@ def web_ui():
           })
         });
 
+        clearTimeout(timeoutId);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.detail || 'Failed to fetch data');
@@ -289,14 +294,22 @@ def web_ui():
         currentData = data;
         renderResults(data);
 
-        // Check if authentication was required for posts
-        if (data.auth_required_for_posts && data.total_posts_scraped === 0) {
+        // Check if rate limited or authentication was required for posts
+        if (data.status === 'rate_limited') {
+          document.getElementById('authNoticeMessage').textContent = '⚠️ ' + data.message;
+          authNoticeBanner.classList.remove('hidden');
+        } else if (data.auth_required_for_posts && data.total_posts_scraped === 0) {
           document.getElementById('authNoticeMessage').textContent = data.message;
           authNoticeBanner.classList.remove('hidden');
         }
       } catch (err) {
+        clearTimeout(timeoutId);
         document.getElementById('errorTitle').textContent = 'Error Scraping Profile';
-        document.getElementById('errorMessage').textContent = err.message;
+        if (err.name === 'AbortError') {
+          document.getElementById('errorMessage').textContent = 'Request timed out after 20 seconds. Instagram is responding slowly or throttling connections.';
+        } else {
+          document.getElementById('errorMessage').textContent = err.message;
+        }
         errorBanner.classList.remove('hidden');
       } finally {
         loader.classList.add('hidden');
