@@ -47,14 +47,14 @@ def web_ui():
   <div class="max-w-5xl mx-auto px-4 py-8">
     <!-- Header -->
     <header class="text-center mb-8">
-      <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-pink-400 text-sm font-medium mb-3">
-        <i class="fa-brands fa-instagram text-lg"></i> FastAPI Live Instagram Scraper
+      <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-emerald-400 text-sm font-medium mb-3">
+        <i class="fa-solid fa-robot text-lg text-emerald-400"></i> Session-Free Playwright Engine Active
       </div>
       <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
         Instagram Data Scraper
       </h1>
       <p class="text-slate-400 mt-2 text-sm sm:text-base">
-        Extract real profile info, bio, posts, captions, timestamps, locations & comments into JSON
+        Extract real profile info, bio, posts, captions, timestamps, locations & comments into JSON &mdash; <strong>No Session ID Needed</strong>
       </p>
       <div class="mt-2 flex justify-center gap-4 text-xs text-slate-500">
         <a href="/docs" target="_blank" class="hover:text-pink-400 transition underline"><i class="fa-solid fa-book"></i> Interactive Docs (/docs)</a>
@@ -92,9 +92,9 @@ def web_ui():
             <input
               type="number"
               id="maxPosts"
-              value="10"
+              value="5"
               min="1"
-              max="200"
+              max="100"
               class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-pink-500 focus:outline-none"
             />
           </div>
@@ -103,21 +103,21 @@ def web_ui():
             <input
               type="number"
               id="maxComments"
-              value="5"
+              value="3"
               min="0"
-              max="100"
+              max="50"
               class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-pink-500 focus:outline-none"
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-amber-300 mb-1">
-              Instagram Session ID <span class="text-slate-500 font-normal">(for live posts)</span>
+            <label class="block text-xs font-medium text-slate-400 mb-1">
+              Instagram Session ID <span class="text-emerald-400 font-normal">(Optional)</span>
             </label>
             <input
               type="text"
               id="sessionId"
-              placeholder="Paste sessionid cookie here"
-              class="w-full px-3 py-2 bg-slate-950 border border-amber-500/40 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              placeholder="Optional - Playwright runs automatically"
+              class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-pink-500 focus:outline-none"
             />
           </div>
         </div>
@@ -125,8 +125,8 @@ def web_ui():
         <!-- Session ID Helper & Demo Toggle -->
         <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 text-xs text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div class="flex items-center gap-2">
-            <i class="fa-solid fa-circle-info text-amber-400"></i>
-            <span><strong>Why Session ID?</strong> Instagram requires login to read post timelines & comments. Without it, real profile details are fetched, but posts require authentication.</span>
+            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span><strong>Session-Free Mode Active:</strong> Powered by Playwright headless browser engine. Real profile info, posts, captions, and comments are scraped live without requiring login cookies.</span>
           </div>
           <label class="flex items-center gap-2 text-slate-400 cursor-pointer flex-shrink-0">
             <input type="checkbox" id="demoFallback" class="rounded bg-slate-900 border-slate-700 text-pink-600 focus:ring-pink-500" />

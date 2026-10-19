@@ -11,3 +11,4 @@ services:
         value: 8000
       - key: INSTAGRAM_SESSION_ID
         sync: false
+

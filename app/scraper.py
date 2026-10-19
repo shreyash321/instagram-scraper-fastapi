@@ -149,13 +149,27 @@ def scrape_instagram_profile(
     username = extract_username(url_or_handle)
     
     # Check cache first to save rate-limits for continuous system queries
-    cache_key = f"{username}:{max_posts}:{max_comments_per_post}:{bool(fallback_sample_data)}"
+    cache_key = f"{username}:{max_posts}:{max_comments_per_post}:{bool(session_id)}"
     cached = cache.get(cache_key)
     if cached:
         logger.info(f"Returning cached profile data for @{username}")
         return cached
 
-    loader = create_instaloader_instance(session_id)
+    # If no session_id is provided, use our powerful session-free Playwright browser engine!
+    if not session_id and not settings.INSTAGRAM_SESSION_ID:
+        try:
+            logger.info(f"Using session-free Playwright browser engine for @{username}...")
+            import asyncio
+            from app.playwright_scraper import scrape_instagram_via_browser
+            response = asyncio.run(scrape_instagram_via_browser(
+                username=username,
+                max_posts=max_posts,
+                max_comments=max_comments_per_post
+            ))
+            cache.set(cache_key, response)
+            return response
+        except Exception as browser_err:
+            logger.warning(f"Browser scraper exception: {browser_err}. Falling back to standard pipeline...")
 
     partial_profile = {}
     profile_data = None

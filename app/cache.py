@@ -41,3 +41,4 @@ class SimpleTTLCache:
 
 # Global cache instance (10-minute default TTL)
 cache = SimpleTTLCache(default_ttl_seconds=600)
+
